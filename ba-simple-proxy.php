@@ -137,7 +137,7 @@
 
 // Change these configuration options if needed, see above descriptions for info.
 $enable_jsonp    = false;
-$enable_native   = false;
+$enable_native   = true;
 $valid_url_regex = '/.*/';
 
 // ############################################################################
@@ -160,8 +160,12 @@ if ( !$url ) {
   $ch = curl_init( $url );
   
   if ( strtolower($_SERVER['REQUEST_METHOD']) == 'post' ) {
+
     curl_setopt( $ch, CURLOPT_POST, true );
-    curl_setopt( $ch, CURLOPT_POSTFIELDS, $_POST );
+    
+    // BRW fix: Pass raw post data to curl so php does not try to manupulate keys 
+    curl_setopt( $ch, CURLOPT_POSTFIELDS, file_get_contents("php://input"));
+
   }
   
   if ( $_GET['send_cookies'] ) {
@@ -183,11 +187,13 @@ if ( !$url ) {
   
   curl_setopt( $ch, CURLOPT_USERAGENT, $_GET['user_agent'] ? $_GET['user_agent'] : $_SERVER['HTTP_USER_AGENT'] );
   
-  list( $header, $contents ) = preg_split( '/([\r\n][\r\n])\\1/', curl_exec( $ch ), 2 );
-  
-  $status = curl_getinfo( $ch );
-  
-  curl_close( $ch );
+  // BRW fix: properly handle HTTP/1.1 100 Continue
+  $contents=curl_exec($ch);
+  list( $header, $contents ) = explode( "\r\n\r\n", $contents , 2);
+  if(strpos($header," 100 Continue")!==false){
+      list( $header, $contents) = explode( "\r\n\r\n", $contents , 2);
+  }
+
 }
 
 // Split header text into an array.
